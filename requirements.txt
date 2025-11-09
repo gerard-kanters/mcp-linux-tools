@@ -1,0 +1,9 @@
+# MCP Linux Tools Server dependencies
+# Install with: pip install -r requirements.txt --break-system-packages
+
+# Required
+fastmcp>=2.13.0
+
+# Optional (used for cron schedule validation)
+croniter>=1.0.0
+
