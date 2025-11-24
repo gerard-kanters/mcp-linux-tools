@@ -10,22 +10,17 @@ REQUIREMENTS:
 SECURITY RESTRICTIONS:
 - Limited directory access (see ALLOWED_READ_DIRS and ALLOWED_LOG_DIRS)
 - Service management: only status/restart of whitelisted services
-- WP-CLI: only for specific WordPress sites
 - Python: sandboxed, no network, 8s timeout
 - Cron: only within MCP-managed section
 
 ALLOWED DIRECTORIES:
-- Read access: /var/log, /etc, /tmp, /opt/, /root/scripts, /var/www /backup, /etc/odoo/ 
-- Log access: /var/log, /tmp, /opt/ai_trading_bot, /opt/finbert, /var/www
+- Read access: /var/log, /etc, /tmp, /opt/, /root/scripts, /var/www, /backup
+- Log access: /var/log, /tmp, /var/www
 
 ALLOWED SERVICES:
-- apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached, ai-trading-dashboard.service
-
-WORDPRESS SITES (WP-CLI):
-- /var/www/myvox.eu
-- /var/www/netcare.nl
-- /var/www/vioolles.net
-- /var/www/heksenendraken
+- apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached, nginx, 
+  systemd-resolved, bind9, named, isc-dhcp-server, dhcpd, mysql, mariadb, 
+  mysqld, smbd, samba, postgresql, odoo
 """
 
 from __future__ import annotations
@@ -34,7 +29,7 @@ from fastmcp import FastMCP
 import subprocess, pathlib, os, re, tempfile, time, shlex, shutil
 from typing import Optional
 try:
-    from croniter import croniter   # optioneel
+    from croniter import croniter   # type: ignore  # optioneel
 except Exception:
     croniter = None
 
@@ -43,25 +38,18 @@ mcp = FastMCP("LinuxTools")
 # =======================
 #   POLICY & CONSTANTS
 # =======================
-ALLOWED_LOG_DIRS  = ["/var/log", "/tmp", "/opt/ai_trading_bot", "/opt/finbert", "/var/www"]
+ALLOWED_LOG_DIRS  = ["/var/log", "/tmp", "/var/www"]
 ALLOWED_READ_DIRS = ["/var/log", "/etc", "/tmp", "/opt/", "/root/scripts", "/var/www", "/backup"]
-SERVICE_WHITELIST = {"apache2", "php8.4-fpm", "postfix", "opendkim", "sshd", "docker", "memcached", "ai-trading-dashboard.service", "postgresql", "odoo"}
+SERVICE_WHITELIST = {
+    "apache2", "php8.4-fpm", "postfix", "opendkim", "sshd", "docker", "memcached",
+    "nginx", "systemd-resolved", "bind9", "named", "isc-dhcp-server", "dhcpd",
+    "mysql", "mariadb", "mysqld", "smbd", "samba", "postgresql", "odoo"
+}
 MAX_BYTES   = 512 * 1024
 MAX_ITEMS   = 500
 PYTHON_BIN  = "/opt/mcp/venv/bin/python"
 PY_TIMEOUT  = 8
 SANDBOX_CWD = "/opt/mcp/sandbox"
-
-# WP-CLI policy
-WP_ALLOWED_SITES = [
-    "/var/www/myvox.eu",
-    "/var/www/netcare.nl",
-    "/var/www/vioolles.net",
-    "/var/www/heksenendraken",
-    "/var/www/traders-for-traders",
-    # add additional WP roots here if needed
-]
-WP_BIN_CANDIDATES = ["/usr/local/bin/wp", "/usr/bin/wp"]
 
 # Cron (root)
 CRON_USER = "root"
@@ -96,14 +84,12 @@ def get_service_whitelist() -> list[str]:
     List of services that this server **may** manage (status/restart).
 
     ALLOWED SERVICES (SERVICE_WHITELIST):
-    - apache2
-    - php8.4-fpm
-    - postfix
-    - opendkim
-    - sshd
-    - docker
-    - memcached
-    - ai-trading-dashboard.service
+    - apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached
+    - nginx, systemd-resolved, bind9, named (DNS)
+    - isc-dhcp-server, dhcpd (DHCP)
+    - mysql, mariadb, mysqld (MySQL)
+    - smbd, samba (SMB)
+    - postgresql, odoo
 
     Return:
     - list[str]: names as they are passed to `systemctl`.
@@ -112,24 +98,6 @@ def get_service_whitelist() -> list[str]:
     """
     return sorted(SERVICE_WHITELIST)
 
-@mcp.tool
-def get_wp_allowed_sites() -> list[str]:
-    """
-    List of WordPress roots for which WP-CLI is allowed.
-
-    ALLOWED WORDPRESS SITES (WP_ALLOWED_SITES):
-    - /var/www/myvox.eu
-    - /var/www/netcare.nl
-    - /var/www/vioolles.net
-    - /var/www/heksenendraken
-    - /var/www/traders-for-traders
-
-    Return:
-    - list[str]: absolute paths to WP roots (where `wp-config.php` is located).
-
-    Example: {}
-    """
-    return WP_ALLOWED_SITES[:]
 
 
 # =======================
@@ -273,8 +241,6 @@ def tail(path: str, n: int = 200) -> str:
     ALLOWED_LOG_DIRS currently:
     - /var/log
     - /tmp
-    - /opt/ai_trading_bot
-    - /opt/finbert
     - /var/www
 
     Example:
@@ -300,108 +266,6 @@ def log_tail(path: str, n: int = 200) -> str:
 
 
 # =======================
-#      WORDPRESS LOGS
-# =======================
-def _pick_wp_log_path() -> str:
-    candidates = [
-        "/var/www/myvox.eu/wp-content/uploads/ai-translate/logs/urlmap.log",
-        "/var/www/myvox.eu/wp-content/debug.log",
-    ]
-    for p in candidates:
-        if pathlib.Path(p).is_file():
-            return p
-    return ""
-
-@mcp.tool
-def log_pick_path() -> str:
-    """
-    Return the best guess WP log:
-    1) uploads/ai-translate/logs/urlmap.log
-    2) wp-content/debug.log
-    Return: absolute path or "Not found".
-
-    Tip: for **other** logs under /var/log use `log_tail` or `tail` directly.
-    """
-    p = _pick_wp_log_path()
-    return p if p else "Not found"
-
-@mcp.tool
-def log_tail_ai(n: int = 300) -> dict:
-    """
-    Tail the WP log and filter on 'ai-translate:'.
-
-    Example:
-    { "n": 500 }
-
-    Tip: for system logs: use `log_tail("/var/log/syslog")`.
-    """
-    p = _pick_wp_log_path()
-    if not p:
-        return {"error": "No log file found"}
-    if not _is_under_allowlist(pathlib.Path(p), ALLOWED_LOG_DIRS):
-        return {"error": "Denied"}
-    try:
-        has_grep = shutil.which("grep") is not None
-        if has_grep:
-            cmd = f"tail -n {int(n)} {shlex.quote(p)} | grep -F \"ai-translate:\" || true"
-            proc = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
-            out = proc.stdout or ""
-            if not out.strip():
-                out = subprocess.run(["tail", "-n", str(int(n)), p], capture_output=True, text=True).stdout
-        else:
-            out = subprocess.run(["tail", "-n", str(int(n)), p], capture_output=True, text=True).stdout
-        return {"path": p, "lines": out}
-    except Exception as e:
-        return {"error": str(e)}
-
-@mcp.tool
-def log_tail_flow(n: int = 400) -> dict:
-    """
-    Tail WP log and filter on mapping-flow events:
-    request:start, parse_request:start, resolved_post_id, resolved_page_by_path,
-    fallback_pagename, no_reverse_mapping, empty_basename, pre_handle_404.
-
-    Example:
-    { "n": 400 }
-    """
-    p = _pick_wp_log_path()
-    if not p:
-        return {"error": "No log file found"}
-    if not _is_under_allowlist(pathlib.Path(p), ALLOWED_LOG_DIRS):
-        return {"error": "Denied"}
-    pattern = r"ai-translate:(request:start|parse_request:start|resolved_post_id|resolved_page_by_path|fallback_pagename|no_reverse_mapping|empty_basename|pre_handle_404)"
-    try:
-        cmd = f"tail -n {int(n)} {shlex.quote(p)} | grep -E {shlex.quote(pattern)} || true"
-        proc = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
-        return {"path": p, "lines": proc.stdout}
-    except Exception as e:
-        return {"error": str(e)}
-
-@mcp.tool
-def log_tail_keywords(keywords: list[str], n: int = 400) -> dict:
-    """
-    Tail WP log and filter on arbitrary keywords (case-sensitive).
-
-    Example:
-    { "keywords": ["contacto","funcionalidad"], "n": 600 }
-    """
-    p = _pick_wp_log_path()
-    if not p:
-        return {"error": "No log file found"}
-    if not _is_under_allowlist(pathlib.Path(p), ALLOWED_LOG_DIRS):
-        return {"error": "Denied"}
-    try:
-        if not keywords:
-            return {"path": p, "lines": ""}
-        expr = "(" + "|".join([re.escape(k) for k in keywords]) + ")"
-        cmd = f"tail -n {int(n)} {shlex.quote(p)} | grep -E {shlex.quote(expr)} || true"
-        proc = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
-        return {"path": p, "lines": proc.stdout}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# =======================
 #         SYSTEMD
 # =======================
 @mcp.tool
@@ -413,7 +277,12 @@ def service_status(name: str) -> str:
     NOTE: MCP server must run as root for systemctl access.
 
     ALLOWED SERVICES (SERVICE_WHITELIST):
-    - apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached, ai-trading-dashboard.service
+    - apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached
+    - nginx, systemd-resolved, bind9, named (DNS)
+    - isc-dhcp-server, dhcpd (DHCP)
+    - mysql, mariadb, mysqld (MySQL)
+    - smbd, samba (SMB)
+    - postgresql, odoo
 
     Return: "{name}: {status}" or "Denied" if service not in whitelist.
     
@@ -437,7 +306,12 @@ def restart_service(name: str) -> str:
     WARNING: This affects the live server!
 
     ALLOWED SERVICES (SERVICE_WHITELIST):
-    - apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached, ai-trading-dashboard.service
+    - apache2, php8.4-fpm, postfix, opendkim, sshd, docker, memcached
+    - nginx, systemd-resolved, bind9, named (DNS)
+    - isc-dhcp-server, dhcpd (DHCP)
+    - mysql, mariadb, mysqld (MySQL)
+    - smbd, samba (SMB)
+    - postgresql, odoo
 
     Return: "Restarted {name}. State: {status}" or "Denied"/"Failed"
     
@@ -486,125 +360,6 @@ def python_run(code: str) -> dict:
         env={"PATH": "/usr/bin:/bin", "PYTHONUNBUFFERED": "1"}
     )
     return {"stdout": proc.stdout, "stderr": proc.stderr, "exit": proc.returncode}
-
-
-# =======================
-#         WP-CLI
-# =======================
-def _which_wp() -> Optional[str]:
-    for p in WP_BIN_CANDIDATES:
-        if pathlib.Path(p).is_file() and os.access(p, os.X_OK):
-            return p
-    wp_in_path = shutil.which("wp")
-    return wp_in_path
-
-def _is_allowed_site(site_path: str) -> bool:
-    rp = str(pathlib.Path(site_path).resolve())
-    return any(rp.startswith(s.rstrip("/") + "/") or rp == s for s in WP_ALLOWED_SITES)
-
-def _wp_cli(site_path: str, args: str, as_www_data: bool = True) -> dict:
-    """Internal WP-CLI runner implementation."""
-    if not _is_allowed_site(site_path):
-        return {"error": "Denied: site_path not allowed"}
-    
-    wp_config = pathlib.Path(site_path) / "wp-config.php"
-    if not wp_config.is_file():
-        return {"error": f"wp-config.php not found in {site_path}"}
-    
-    wp = _which_wp()
-    if not wp:
-        return {"error": "wp not found (install wp-cli)"}
-    
-    cmd = [wp, f"--path={site_path}"] + shlex.split(args)
-    
-    if not as_www_data:
-        cmd.append("--allow-root")
-    
-    env = {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "WP_CLI_DISABLE_AUTO_CHECK_UPDATE": "1",
-        "HOME": "/var/www" if as_www_data else "/root",
-    }
-    
-    try:
-        if as_www_data:
-            full = ["sudo", "-u", "www-data", "-E"] + cmd
-        else:
-            full = cmd
-        proc = subprocess.run(full, capture_output=True, text=True, env=env, timeout=60)
-        return {"cmd": " ".join(full), "exit": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr}
-    except Exception as e:
-        return {"error": str(e)}
-
-@mcp.tool
-def wp_cli(site_path: str, args: str, as_www_data: bool = True) -> dict:
-    """
-    WP-CLI runner for **allowed** WordPress sites.
-    
-    SECURITY: Only allowed sites, auto-check for wp-config.php.
-
-    ALLOWED WORDPRESS SITES (WP_ALLOWED_SITES):
-    - /var/www/myvox.eu
-    - /var/www/netcare.nl
-    - /var/www/vioolles.net
-    - /var/www/heksenendraken
-    - /var/www/traders-for-traders
-
-    Parameters:
-    - site_path (str): WP root path (must be in whitelist)
-    - args (str): WP-CLI subcommand + flags, e.g. "plugin list --format=json"
-    - as_www_data (bool): default True (execute as www-data user)
-
-    Return:
-    - dict: {"cmd": str, "exit": int, "stdout": str, "stderr": str} 
-    - or {"error": "Denied/Not found"}
-
-    Examples:
-    {"site_path": "/var/www/netcare.nl", "args": "cache flush"}
-    {"site_path": "/var/www/netcare.nl", "args": "plugin list --format=json"}
-    {"site_path": "/var/www/netcare.nl", "args": "db tables"}
-    """
-    return _wp_cli(site_path, args, as_www_data)
-
-@mcp.tool
-def wp_cache_flush(site_path: str, as_www_data: bool = True) -> dict:
-    """
-    WP-CLI: `cache flush` for an allowed WordPress site.
-    
-    Shortcut for: wp_cli(site_path, "cache flush", as_www_data)
-
-    Parameters:
-    - site_path: must be in WP_ALLOWED_SITES whitelist
-
-    Example: {"site_path": "/var/www/netcare.nl"}
-    """
-    return _wp_cli(site_path, "cache flush", as_www_data)
-
-@mcp.tool
-def wp_plugin_list(site_path: str, as_www_data: bool = True) -> dict:
-    """
-    WP-CLI: list all plugins in JSON format.
-    
-    Shortcut for: wp_cli(site_path, "plugin list --format=json", as_www_data)
-    
-    Return: JSON array with plugin info (name, status, version, etc.)
-
-    Example: {"site_path": "/var/www/netcare.nl"}
-    """
-    return _wp_cli(site_path, "plugin list --format=json", as_www_data)
-
-@mcp.tool
-def wp_user_list(site_path: str, as_www_data: bool = True) -> dict:
-    """
-    WP-CLI: list all WordPress users in JSON format.
-    
-    Shortcut for: wp_cli(site_path, "user list --format=json", as_www_data)
-    
-    Return: JSON array with user info (ID, login, email, roles, etc.)
-
-    Example: {"site_path": "/var/www/netcare.nl"}
-    """
-    return _wp_cli(site_path, "user list --format=json", as_www_data)
 
 
 # =======================
