@@ -1,0 +1,63 @@
+{
+  "server_type": "development",
+  "server_ip": "192.168.1.2",
+  "server_name": "LinuxTools-Server",
+  "logging": {
+    "log_file": "/var/log/mcp-linux-tools.log"
+  },
+  "limits": {
+    "max_bytes": 524288,
+    "max_items": 500
+  },
+  "python": {
+    "bin": "/opt/mcp/venv/bin/python"
+  },
+  "directories": {
+    "allowed_read": [
+      "/var/log",
+      "/etc",
+      "/tmp",
+      "/opt/",
+      "/root/scripts",
+      "/var/www"
+    ],
+    "allowed_log": [
+      "/var/log",
+      "/tmp",
+      "/var/www"
+    ],
+    "allowed_write": [
+      "/var/www",
+      "/opt/"
+    ],
+    "sandbox_cwd": "/opt/mcp/sandbox"
+  },
+  "services": {
+    "whitelist": [
+      "apache2",
+      "php-fpm",
+      "postfix",
+      "opendkim",
+      "sshd",
+      "docker",
+      "memcached",
+      "named",
+      "postgresql",
+      "odoo"
+    ]
+  },
+  "wordpress": {
+    "allowed_sites": [
+      "/var/www/example.com",
+      "/var/www/example.org"
+    ],
+    "bin_candidates": [
+      "/usr/local/bin/wp",
+      "/usr/bin/wp"
+    ],
+    "log_candidates": [
+      "/var/www/example.com/wp-content/debug.log",
+      "/var/www/example.org/wp-content/debug.log"
+    ]
+  }
+}
