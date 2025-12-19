@@ -199,7 +199,7 @@ Directory whitelists are configured in `config.json` under `directories`.
 Default: `/var/log`, `/etc`, `/tmp`, `/opt/`, `/root/scripts`, `/var/www`
 
 ### Log Access (allowed_log):
-Default: `/var/log`, `/tmp`, `/opt/ai_trading_bot`, `/opt/finbert`, `/var/www`
+Default: `/var/log`, `/tmp`, `/var/www`
 
 ### Write Access (allowed_write):
 Default: `/var/www`, `/opt/`
@@ -222,7 +222,6 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 - `memcached` - Memory cache daemon
 - `postgresql` - PostgreSQL database server
 - `odoo` - Odoo ERP system
-- `ai-trading-dashboard.service` - Custom application service
 
 **Note**: Service names may vary by distribution. Use `get_service_whitelist()` to query the active whitelist.
 
