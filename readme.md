@@ -1,25 +1,24 @@
-# MCP Linux Tools - Complete Tool Reference for LLMs
+# 🛠️ MCP Linux Tools – Complete Tool Reference for LLMs
 
-## 🏗️ ARCHITECTURE
+## 📖 Description
 
-The server follows a modular MCP architecture (refactor March 2026):
+MCP Linux Tools is an MCP (Model Context Protocol) server that exposes a secure, whitelisted set of operations on a Linux server. It allows AI assistants (such as Cursor) to perform controlled system administration tasks like reading logs, checking service status, managing cron jobs, running WP-CLI commands, and executing sandboxed Python code—all through a uniform API with strict security constraints.
 
-- `server.py` – Entrypoint: config loading, MCP setup, tool registration, run/retry/signal handling
-- `config.py` – Config loading and validation (fail-fast on missing fields)
-- `register_tools.py` – Central tool registration
-- `core/` – Core modules:
-  - `errors.py` – Error codes (DENIED_PATH, INVALID_INPUT, COMMAND_BLOCKED, etc.)
-  - `models.py` – Pydantic models for uniform response contract
-  - `response.py` – ok(), err(), err_denied_* helpers
-  - `security.py` – Allowlist and path validation
-  - `process.py` – Subprocess runner
-- `tools/` – Tool modules per domain:
-  - `discovery.py`, `filesystem.py`, `logs.py`, `systemd.py`
-  - `python_exec.py`, `wordpress.py`, `cron_tools.py`, `ops.py`
+The server runs as a systemd service and communicates over HTTP. All operations are restricted by configurable whitelists (directories, services, WordPress sites). Tools return a uniform response contract `{success, data, error, meta}`.
 
-All tools return a uniform response contract: `{success, data, error, meta}`.
+## ✨ Features
 
-## 📦 INSTALLATION
+- **🔍 Metadata & Discovery** – Server info, service whitelist, WordPress allowed sites
+- **📂 File Operations** – Read files, list directories, head/tail logs (whitelisted paths only)
+- **⚙️ System Services** – Check status, reload or restart whitelisted services
+- **🐍 Python Sandbox** – Execute Python code (no network, 8s timeout)
+- **⏰ Cron Management** – List, add, remove, enable/disable cron jobs
+- **🌐 WordPress** – WP-CLI runner, cache flush, plugin/user listing, log tailing
+- **🗄️ Database** – Read-only MySQL queries (dangerous queries blocked)
+- **📡 Network** – Ping for connectivity testing
+- **📌 Git** – Safe Git commands (no push/force)
+
+## 📦 Installation
 
 ### Requirements
 - Python 3.13 or higher
@@ -148,7 +147,28 @@ sudo systemctl restart mcp-linux-tools.service
 
 ---
 
-## ⚙️ CONFIGURATION
+## 🏗️ Architecture
+
+The server follows a modular MCP architecture:
+
+- `server.py` – Entrypoint: config loading, MCP setup, tool registration, run/retry/signal handling
+- `config.py` – Config loading and validation (fail-fast on missing fields)
+- `register_tools.py` – Central tool registration
+- `core/` – Core modules:
+  - `errors.py` – Error codes (DENIED_PATH, INVALID_INPUT, COMMAND_BLOCKED, etc.)
+  - `models.py` – Pydantic models for uniform response contract
+  - `response.py` – ok(), err(), err_denied_* helpers
+  - `security.py` – Allowlist and path validation
+  - `process.py` – Subprocess runner
+- `tools/` – Tool modules per domain:
+  - `discovery.py`, `filesystem.py`, `logs.py`, `systemd.py`
+  - `python_exec.py`, `wordpress.py`, `cron_tools.py`, `ops.py`
+
+All tools return a uniform response contract: `{success, data, error, meta}`.
+
+---
+
+## ⚙️ Configuration
 
 All configuration is done via `config.json` in the root of the MCP server directory (`/opt/mcp/config.json`).
 
