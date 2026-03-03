@@ -3,7 +3,11 @@
 
 # Required
 fastmcp>=2.14.0
+pydantic>=2.0.0
 
 # Optional (used for cron schedule validation)
 croniter>=1.0.0
+
+# Development (tests)
+pytest>=8.0.0
 

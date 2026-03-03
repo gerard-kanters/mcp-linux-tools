@@ -1,5 +1,24 @@
 # MCP Linux Tools - Complete Tool Reference for LLMs
 
+## 🏗️ ARCHITECTURE
+
+The server follows a modular MCP architecture (refactor March 2026):
+
+- `server.py` – Entrypoint: config loading, MCP setup, tool registration, run/retry/signal handling
+- `config.py` – Config loading and validation (fail-fast on missing fields)
+- `register_tools.py` – Central tool registration
+- `core/` – Core modules:
+  - `errors.py` – Error codes (DENIED_PATH, INVALID_INPUT, COMMAND_BLOCKED, etc.)
+  - `models.py` – Pydantic models for uniform response contract
+  - `response.py` – ok(), err(), err_denied_* helpers
+  - `security.py` – Allowlist and path validation
+  - `process.py` – Subprocess runner
+- `tools/` – Tool modules per domain:
+  - `discovery.py`, `filesystem.py`, `logs.py`, `systemd.py`
+  - `python_exec.py`, `wordpress.py`, `cron_tools.py`, `ops.py`
+
+All tools return a uniform response contract: `{success, data, error, meta}`.
+
 ## 📦 INSTALLATION
 
 ### Requirements
@@ -246,7 +265,8 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 
 ### 3️⃣ SYSTEM SERVICES
 - `service_status(name)` - Check status (Read-Only)
-- `restart_service(name)` - Restart service ⚠️ (Live impact!)
+- `reload_service(name)` - Reload service via `systemctl reload` (preferred action, low impact)
+- `restart_service(name, force_restart)` - Service modification: default is reload, use `force_restart=True` for full restart ⚠️ (Live impact!)
 
 ### 4️⃣ PYTHON EXECUTION
 - `python_run(code)` - Sandboxed Python (no network, 8s timeout)
@@ -375,7 +395,7 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 ## ⚠️ IMPORTANT NOTES FOR LLMs
 
 1. **Read-Only Default**: Most tools are read-only. Write operations are limited to:
-   - `restart_service()` - Restart services
+   - `reload_service()` / `restart_service()` - Service reload/restart
    - `cron_add/remove/enable()` - Cron modifications
    - `create_directory()` - Create directory (only /var/www and /opt/)
    - `chmod_file()` - Change file permissions (only /var/www and /opt/)
@@ -396,10 +416,11 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
    - Python is sandboxed
    - Cron commands must use absolute paths
 
-5. **Error Handling**: Tools return clear errors:
-   - "Denied" = outside whitelist
-   - "Not found" = file/service does not exist
-   - {"error": "..."} = specific error
+5. **Error Handling** – Uniform response contract `{success, data, error, meta}`:
+   - `success=true`: data contains result, error is null
+   - `success=false`: error contains `{code, message, hint}`, data is null
+   - Error codes: DENIED_PATH, DENIED_SERVICE, DENIED_SITE, INVALID_INPUT, COMMAND_BLOCKED, NOT_FOUND, TIMEOUT, etc.
+   - meta: server_type, server_ip, server_name
 
 6. **Return Types**:
    - Strings for simple output
@@ -431,8 +452,9 @@ All tools have been tested and work correctly:
 ✅ File operations (read-only)
 ✅ Directory listing
 
-**Last Updated**: 2025-01-XX
+**Last Updated**: 2026-03-03
 **Server**: Linux (generic)
 **Environment**: Production/Development
 **Configuration**: Via `config.json` (no hardcoded values)
+**Architecture**: Modular (server.py entrypoint, core/, tools/)
 
