@@ -159,6 +159,10 @@ All configuration is done via `config.json` in the root of the MCP server direct
 - `server_ip`: IP address of the server
 - `server_name`: Name for the MCP server
 
+#### Server Listen (optional)
+- `server.host`: Bind address (default: "0.0.0.0")
+- `server.port`: HTTP port (default: 8765)
+
 #### Logging
 - `logging.log_file`: Path to log file
 

@@ -9,6 +9,8 @@ class ServerConfig:
     server_type: str
     server_ip: str
     server_name: str
+    server_host: str
+    server_port: int
     log_file: str
     allowed_log_dirs: list[str]
     allowed_read_dirs: list[str]
@@ -58,6 +60,26 @@ def _require_str_list(cfg: dict[str, Any], path: list[str]) -> list[str]:
     return out
 
 
+def _optional_str(cfg: dict[str, Any], path: list[str], default: str) -> str:
+    try:
+        value = _get_config_value(cfg, path)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    except RuntimeError:
+        pass
+    return default
+
+
+def _optional_int(cfg: dict[str, Any], path: list[str], default: int) -> int:
+    try:
+        value = _get_config_value(cfg, path)
+        if isinstance(value, int):
+            return value
+    except RuntimeError:
+        pass
+    return default
+
+
 def load_config(path: pathlib.Path) -> ServerConfig:
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -74,6 +96,8 @@ def load_config(path: pathlib.Path) -> ServerConfig:
         server_type=_require_str(raw, ["server_type"]),
         server_ip=_require_str(raw, ["server_ip"]),
         server_name=_require_str(raw, ["server_name"]),
+        server_host=_optional_str(raw, ["server", "host"], "0.0.0.0"),
+        server_port=_optional_int(raw, ["server", "port"], 8765),
         log_file=_require_str(raw, ["logging", "log_file"]),
         allowed_log_dirs=_require_str_list(raw, ["directories", "allowed_log"]),
         allowed_read_dirs=_require_str_list(raw, ["directories", "allowed_read"]),

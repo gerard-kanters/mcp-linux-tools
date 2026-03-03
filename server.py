@@ -1,5 +1,5 @@
 """
-MCP Linux Tools Server (refactored entrypoint)
+MCP Linux Tools Server
 """
 
 import logging
@@ -58,15 +58,15 @@ def main() -> None:
 
     logger.info(f"Starting {cfg.server_name} ({cfg.server_type}) on {cfg.server_ip}")
     logger.info("MCP server transport: http (streamable) with tolerant reconnect settings")
-    logger.info("Server will listen on http://0.0.0.0:8765/mcp")
+    logger.info(f"Server will listen on http://{cfg.server_host}:{cfg.server_port}/mcp")
 
     for attempt in range(1, max_retries + 1):
         try:
             try:
                 mcp.run(
                     transport="http",
-                    host="0.0.0.0",
-                    port=8765,
+                    host=cfg.server_host,
+                    port=cfg.server_port,
                     path="/mcp",
                     stateless_http=True,
                     log_level="info",
@@ -75,8 +75,8 @@ def main() -> None:
                 logger.warning(f"TypeError starting server with stateless_http; retrying without it: {te}")
                 mcp.run(
                     transport="http",
-                    host="0.0.0.0",
-                    port=8765,
+                    host=cfg.server_host,
+                    port=cfg.server_port,
                     path="/mcp",
                     log_level="info",
                 )
@@ -86,7 +86,7 @@ def main() -> None:
             sys.exit(0)
         except OSError as e:
             if "Address already in use" in str(e) and attempt < max_retries:
-                logger.warning(f"Port 8765 already in use, retrying in {retry_delay}s (attempt {attempt}/{max_retries})")
+                logger.warning(f"Port {cfg.server_port} already in use, retrying in {retry_delay}s (attempt {attempt}/{max_retries})")
                 time.sleep(retry_delay)
                 continue
             logger.error(f"OS error: {e}", exc_info=True)

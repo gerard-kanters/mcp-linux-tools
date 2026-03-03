@@ -2,6 +2,10 @@
   "server_type": "development",
   "server_ip": "192.168.1.2",
   "server_name": "LinuxTools-Server",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8765
+  },
   "logging": {
     "log_file": "/var/log/mcp-linux-tools.log"
   },
