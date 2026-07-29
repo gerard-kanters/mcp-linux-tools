@@ -282,7 +282,7 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 - `read_file(path, max_bytes)` - Read file (max 512KB, Read-Only)
 - `head(path, n)` - First N lines (Read-Only)
 - `tail(path, n)` - Last N lines (for logs, Read-Only)
-- `log_tail(path, n)` - Alias for tail (clearer for logs, Read-Only)
+- `log_search(keywords, path, n)` - Search literal keywords in recent log lines (Read-Only)
 - `create_directory(path, owner, group, mode, parents)` - Create directory ⚠️ (only /var/www and /opt/)
 - `chmod_file(path, mode)` - Change file permissions ⚠️ (only /var/www and /opt/)
 - `chown_path(path, owner, group)` - Change owner ⚠️ (only /var/www and /opt/)
@@ -308,9 +308,6 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 - `wp_plugin_list(site_path, as_www_data)` - List all plugins (JSON)
 - `wp_user_list(site_path, as_www_data)` - List all users (JSON)
 - `log_pick_path()` - Find WordPress debug log path
-- `log_tail_ai(n)` - Tail WP-log filtered on 'ai-translate:'
-- `log_tail_flow(n)` - Tail WP-log filtered on mapping-flow events
-- `log_tail_keywords(keywords, n)` - Tail WP-log filtered on keywords
 
 ### 7️⃣ DATABASE OPERATIONS
 - `mysql_query(query, database)` - Execute MySQL query (Read-Only, dangerous queries blocked)
@@ -354,7 +351,7 @@ The service whitelist is configured in `config.json` under `services.whitelist`.
 
 ### View Log File:
 ```json
-{"tool": "log_tail", "args": {
+{"tool": "tail", "args": {
   "path": "/var/log/nginx/error.log",
   "n": 100
 }}
