@@ -68,10 +68,20 @@ def register_systemd_tools(mcp, cfg: ServerConfig) -> None:
     @mcp.tool
     def restart_service(name: str, force_restart: bool = False) -> dict:
         """
-        Service mutate-tool met voorkeur voor reload.
+        Herlaad standaard een toegestane systemd-service of herstart die expliciet.
 
-        Standaard doet deze tool eerst een reload (lage impact). Alleen met
-        `force_restart=True` wordt een echte restart uitgevoerd.
+        `name` moet exact in `service_whitelist` staan; raadpleeg
+        `get_service_whitelist` voor geldige namen. De MCP-service zelf is
+        geblokkeerd om te voorkomen dat de verbinding wordt verbroken. Met
+        `force_restart=False` (standaard) voert de tool `systemctl reload` uit;
+        alleen `force_restart=True` voert `systemctl restart` uit, wat de service
+        tijdelijk kan onderbreken en actieve processen kan beëindigen. De
+        uitvoerende service heeft systemd-permissies nodig en de actie heeft een
+        timeout van 30 seconden. De `{success, data, error, meta}`-response bevat
+        na succes de actie en actuele status, of een fout bij een geweigerde
+        service, systemd-fout of timeout. Gebruik `reload_service` wanneer
+        uitsluitend een reload gewenst is en `service_status` wanneer geen
+        wijziging nodig is.
         """
         if not force_restart:
             return _reload_service(name)

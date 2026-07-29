@@ -26,7 +26,19 @@ def register_filesystem_tools(mcp, cfg: ServerConfig) -> None:
         max_items: int | None = None,
     ) -> dict:
         """
-        Toon directory-inhoud met simpele filtering (alleen onder ALLOWED_READ_DIRS).
+        Bekijk gefilterde directory-inhoud zonder het bestandssysteem te wijzigen.
+
+        `path` moet een bestaande directory onder `allowed_read_dirs` zijn.
+        `pattern` gebruikt `pathlib`-globsyntaxis (`*` standaard; gebruik
+        bijvoorbeeld `**/*` voor recursieve resultaten). Standaard worden alleen
+        bestanden opgenomen; zet `include_dirs=True` voor directories en
+        `include_files=False` om bestanden uit te sluiten. `max_items` gebruikt
+        standaard de geconfigureerde limiet en wordt begrensd tot 1–`max_items`
+        uit de serverconfiguratie. De tool retourneert per item naam, absoluut
+        pad, type, wijzigingstijd en voor bestanden de grootte; ontoegankelijke
+        items bevatten een eigen foutmelding. Resultaten gebruiken de standaard
+        `{success, data, error, meta}`-response. Gebruik `read_file`, `head` of
+        `tail` om vervolgens bestandsinhoud te lezen.
         """
         if not path or not path.strip():
             return err(INVALID_INPUT, "Path cannot be empty", cfg=cfg)
@@ -79,7 +91,20 @@ def register_filesystem_tools(mcp, cfg: ServerConfig) -> None:
         parents: bool = False,
     ) -> dict:
         """
-        Maakt een nieuwe directory aan.
+        Maak een nieuwe directory en stel eigenaar, groep en Unix-modus in.
+
+        Deze tool wijzigt het bestandssysteem. `path` mag nog niet bestaan en
+        de bovenliggende directory moet onder `allowed_write_dirs` vallen.
+        `owner` en `group` zijn bestaande lokale namen (standaard `root`);
+        `mode` is een octale tekenreeks zoals `755` of `0755`. Met
+        `parents=True` worden ontbrekende bovenliggende directories aangemaakt;
+        eigenaar, groep en de opgegeven modus worden alleen expliciet op de
+        doel-directory toegepast. De uitvoerende service moet daarvoor voldoende
+        permissies hebben. Succes retourneert `"ok"` via
+        `{success, data, error, meta}`; bestaande paden, onbekende accounts,
+        ongeldige modi, geweigerde paden en ontbrekende permissies leveren een
+        foutresponse op. Gebruik deze tool niet om een bestaande directory of
+        bestandsinhoud te wijzigen.
         """
         if not path or not path.strip():
             return err(INVALID_INPUT, "Path cannot be empty", cfg=cfg)
@@ -113,7 +138,18 @@ def register_filesystem_tools(mcp, cfg: ServerConfig) -> None:
     @mcp.tool
     def read_file(path: str, max_bytes: int | None = None) -> dict:
         """
-        Lees een klein tekstbestand (utf-8) onder ALLOWED_READ_DIRS.
+        Lees een tekstbestand onder `allowed_read_dirs` zonder het te wijzigen.
+
+        `path` moet een bestaand regulier bestand zijn. `max_bytes` bepaalt
+        hoeveel bytes maximaal worden gelezen; zonder waarde geldt de
+        geconfigureerde `max_bytes`, en iedere opgegeven waarde wordt begrensd
+        tot 1–die configuratielimiet. Bytes worden als UTF-8 gedecodeerd waarbij
+        ongeldige tekens worden vervangen. Als meer gegevens beschikbaar zijn,
+        eindigt de tekst met `[...truncated...]`. De
+        `{success, data, error, meta}`-response bevat de tekst of een fout voor
+        een geweigerd pad, ontbrekend bestand of ontbrekende leespermissie.
+        Gebruik `head` of `tail` wanneer alleen regels aan het begin of einde
+        nodig zijn.
         """
         p = pathlib.Path(path)
         if not is_under_allowlist(p, cfg.allowed_read_dirs):
