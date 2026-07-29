@@ -33,6 +33,14 @@ def register_systemd_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def service_status(name: str) -> dict:
+        """
+        Lees de actieve systemd-status van één toegestane service.
+
+        `name` moet exact in `service_whitelist` staan. De tool voert alleen
+        `systemctl is-active` uit, wijzigt de service niet en heeft een timeout
+        van 10 seconden. Zowel een actieve status als een niet-actieve
+        systemd-melding wordt als tekst in de standaardresponse teruggegeven.
+        """
         if name not in cfg.service_whitelist:
             return err_denied_service(name, cfg)
         try:

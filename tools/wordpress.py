@@ -51,16 +51,50 @@ def register_wordpress_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def wp_cli(site_path: str, args: str, as_www_data: bool = True) -> dict:
+        """
+        Voer opgegeven WP-CLI-argumenten uit voor een toegestane WordPress-site.
+
+        `site_path` moet in `wp_allowed_sites` staan en `wp-config.php` bevatten.
+        `args` wordt met shell-achtige argumentquoting opgesplitst, zonder
+        shelluitbreiding, en kan afhankelijk van het WP-CLI-commando de site
+        wijzigen. Standaard draait het commando als `www-data`; met
+        `as_www_data=False` draait het als root met `--allow-root`. De timeout
+        is 60 seconden; commando, stdout, stderr en exitcode worden geretourneerd.
+        """
         return _wp_cli(site_path, args, as_www_data)
 
     @mcp.tool
     def wp_cache_flush(site_path: str, as_www_data: bool = True) -> dict:
+        """
+        Wis de WordPress-objectcache van één toegestane site via WP-CLI.
+
+        `site_path` moet in `wp_allowed_sites` staan en een `wp-config.php`
+        bevatten. Deze muterende tool voert `wp cache flush` uit, standaard
+        als `www-data`; met `as_www_data=False` als root met `--allow-root`.
+        De timeout is 60 seconden en stdout, stderr en exitcode worden geretourneerd.
+        """
         return _wp_cli(site_path, "cache flush", as_www_data)
 
     @mcp.tool
     def wp_plugin_list(site_path: str, as_www_data: bool = True) -> dict:
+        """
+        Lees de geïnstalleerde WordPress-plugins van een toegestane site.
+
+        `site_path` moet in `wp_allowed_sites` staan en `wp-config.php`
+        bevatten. De tool voert `wp plugin list --format=json` uit, standaard
+        als `www-data`; met `as_www_data=False` als root met `--allow-root`.
+        De bedoelde operatie is alleen-lezen en heeft een timeout van 60 seconden.
+        """
         return _wp_cli(site_path, "plugin list --format=json", as_www_data)
 
     @mcp.tool
     def wp_user_list(site_path: str, as_www_data: bool = True) -> dict:
+        """
+        Lees de WordPress-gebruikers van een toegestane site als JSON.
+
+        `site_path` moet in `wp_allowed_sites` staan en `wp-config.php`
+        bevatten. De tool voert `wp user list --format=json` uit, standaard
+        als `www-data`; met `as_www_data=False` als root met `--allow-root`.
+        De bedoelde operatie is alleen-lezen en heeft een timeout van 60 seconden.
+        """
         return _wp_cli(site_path, "user list --format=json", as_www_data)

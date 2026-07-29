@@ -15,6 +15,16 @@ from core.security import is_under_allowlist
 def register_ops_tools(mcp, cfg: ServerConfig) -> None:
     @mcp.tool
     def mysql_query(query: str, database: str = "") -> dict:
+        """
+        Voer SQL uit met de lokale MySQL-client als databasegebruiker `root`.
+
+        `query` is de volledige SQL-tekst en mag niet leeg zijn. `database`
+        kiest optioneel een database; een lege waarde gebruikt de standaard
+        MySQL-context. Queries met de tekst `DROP`, `TRUNCATE`, `DELETE` of
+        `ALTER` worden geblokkeerd. Andere SQL, inclusief mogelijk muterende
+        statements, wordt niet door deze tool geblokkeerd. De timeout is
+        30 seconden en stdout van de client wordt teruggegeven.
+        """
         if not query or not query.strip():
             return err(INVALID_INPUT, "Query cannot be empty", cfg=cfg)
 
@@ -43,6 +53,14 @@ def register_ops_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def chmod_file(path: str, mode: str) -> dict:
+        """
+        Wijzig de Unix-permissiemodus van een bestaand toegestaan pad.
+
+        `path` moet bestaan en onder `allowed_write_dirs` vallen. `mode` moet
+        een octale tekenreeks van drie of vier cijfers zijn, bijvoorbeeld
+        `755` of `0755`. Deze tool muteert bestandssysteemmetadata via
+        `chmod`, maar wijzigt de bestandsinhoud niet.
+        """
         if not path or not path.strip():
             return err(INVALID_INPUT, "Path cannot be empty", cfg=cfg)
         if not mode or not mode.strip():
@@ -66,6 +84,14 @@ def register_ops_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def chown_path(path: str, owner: str, group: str) -> dict:
+        """
+        Wijzig eigenaar en groep van een bestaand toegestaan pad.
+
+        `path` moet bestaan en onder `allowed_write_dirs` vallen. `owner` en
+        `group` moeten bestaande lokale namen zijn. Deze tool muteert
+        bestandssysteemmetadata via `chown`; onbekende gebruikers of groepen
+        en ontbrekende permissies leveren een fout op.
+        """
         if not path or not path.strip():
             return err(INVALID_INPUT, "Path cannot be empty", cfg=cfg)
         if not owner or not owner.strip():
@@ -91,6 +117,14 @@ def register_ops_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def ping_host(host: str, count: int = 4) -> dict:
+        """
+        Test netwerkbereikbaarheid van een host met ICMP-ping.
+
+        `host` accepteert alleen letters, cijfers, punten en koppeltekens;
+        shell-expressies zijn daardoor niet toegestaan. `count` wordt begrensd
+        tot 1–10 pakketten. De tool wijzigt het systeem niet, heeft een totale
+        timeout van 60 seconden en retourneert uitvoer, exitcode en successtatus.
+        """
         if not host or not host.strip():
             return err(INVALID_INPUT, "Host cannot be empty", cfg=cfg)
         if not re.match(r"^[a-zA-Z0-9.-]+$", host):
@@ -123,6 +157,16 @@ def register_ops_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def git_command(path: str, command: str) -> dict:
+        """
+        Voer één Git-subcommando uit in een toegestane lokale repository.
+
+        `path` moet onder `allowed_write_dirs` vallen en een `.git`-directory
+        bevatten. `command` bevat alles na `git -C <path>` en wordt met
+        shell-achtige argumentquoting opgesplitst, zonder shelluitbreiding.
+        Push, force, delete, `branch -d` en `reset --hard` worden geblokkeerd;
+        andere muterende Git-commando's kunnen de repository wel wijzigen.
+        De timeout is 30 seconden en stdout, stderr en exitcode worden geretourneerd.
+        """
         if not path or not path.strip():
             return err(INVALID_INPUT, "Path cannot be empty", cfg=cfg)
         if not command or not command.strip():
@@ -165,6 +209,16 @@ def register_ops_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def execute_shell_command(command: str, user: Optional[str] = None) -> dict:
+        """
+        Voer een lokaal programma uit als root of als de opgegeven gebruiker.
+
+        `command` wordt in argumenten opgesplitst en direct gestart, dus pipes,
+        redirects en andere shellsyntaxis worden niet geïnterpreteerd. Met
+        `user` wordt het programma via `sudo -u` uitgevoerd; zonder waarde is
+        de uitvoerende gebruiker root. Het commando kan het systeem wijzigen.
+        Voor curl/wget is de werkdirectory `/tmp`; de timeout is 300 seconden.
+        Stdout, stderr, exitcode en de effectieve gebruiker worden geretourneerd.
+        """
         if not command or not command.strip():
             return err(INVALID_INPUT, "Command cannot be empty", cfg=cfg)
 

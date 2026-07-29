@@ -12,6 +12,16 @@ PY_TIMEOUT = 8
 def register_python_exec_tools(mcp, cfg: ServerConfig) -> None:
     @mcp.tool
     def python_run(code: str) -> dict:
+        """
+        Voer een kort Python-fragment uit in de geconfigureerde sandboxdirectory.
+
+        `code` is verplichte Python-broncode en wordt met de geconfigureerde
+        interpreter als `python -S -c` uitgevoerd. De subprocess krijgt alleen
+        een minimale `PATH` en `PYTHONUNBUFFERED`, gebruikt `sandbox_cwd` als
+        werkdirectory en wordt na 8 seconden beëindigd. De code kan binnen de
+        rechten en isolatie van het MCP-serviceproces side effects veroorzaken.
+        Stdout, stderr, exitcode en successtatus worden geretourneerd.
+        """
         if not code or not code.strip():
             return err(INVALID_INPUT, "Code cannot be empty", cfg=cfg)
         try:

@@ -105,6 +105,14 @@ def register_cron_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def cron_list() -> dict:
+        """
+        Lees de volledige crontab van de lokale rootgebruiker.
+
+        De tool heeft geen parameters en wijzigt de crontab niet. Zowel
+        handmatig beheerde regels als de sectie tussen de MCP-markeringen
+        worden als onbewerkte tekst teruggegeven; een ontbrekende crontab
+        resulteert in een lege tekenreeks.
+        """
         try:
             content = _get_crontab(CRON_USER)
             return ok(content, cfg)
@@ -113,6 +121,15 @@ def register_cron_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def cron_add(job_id: str, schedule: str, command: str) -> dict:
+        """
+        Voeg een root-cronjob toe of vervang die binnen de MCP-beheerde sectie.
+
+        `job_id` identificeert de job en accepteert alleen letters, cijfers,
+        punt, underscore en koppelteken. `schedule` moet exact vijf cronvelden
+        bevatten. Het eerste woord van `command` moet een absoluut pad zijn.
+        Deze tool herschrijft de root-crontab, maar behoudt regels buiten
+        `# --- BEGIN/END MCP MANAGED ---`; een bestaand `job_id` wordt vervangen.
+        """
         if not job_id or not job_id.strip():
             return err(INVALID_INPUT, "job_id cannot be empty", cfg=cfg)
         if not schedule or not schedule.strip():
@@ -142,6 +159,14 @@ def register_cron_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def cron_remove(job_id: str) -> dict:
+        """
+        Verwijder één job uit de MCP-beheerde sectie van de root-crontab.
+
+        `job_id` is de identifier die eerder door `cron_add` is opgeslagen.
+        De tool herschrijft de root-crontab en verwijdert de bijbehorende
+        MCP-marker en cronregel; regels buiten de MCP-sectie blijven behouden.
+        Een onbekend `job_id` veroorzaakt geen verwijdering.
+        """
         if not job_id or not job_id.strip():
             return err(INVALID_INPUT, "job_id cannot be empty", cfg=cfg)
         try:
@@ -159,6 +184,15 @@ def register_cron_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def cron_enable(job_id: str, enabled: bool) -> dict:
+        """
+        Schakel een MCP-beheerde root-cronjob in of uit.
+
+        `job_id` selecteert een bestaande job in de MCP-sectie. Met
+        `enabled=True` wordt een uitgeschakelde cronregel actief; met `False`
+        wordt de regel met `# ` gecommentarieerd. De tool herschrijft de
+        root-crontab, behoudt regels buiten de MCP-sectie en doet inhoudelijk
+        niets wanneer het opgegeven ID niet bestaat.
+        """
         if not job_id or not job_id.strip():
             return err(INVALID_INPUT, "job_id cannot be empty", cfg=cfg)
         try:
@@ -176,6 +210,14 @@ def register_cron_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def cron_next_runs(schedule: str, n: int = 5) -> dict:
+        """
+        Bereken toekomstige lokale uitvoertijden voor een cronschema.
+
+        `schedule` moet exact vijf geldige cronvelden bevatten. `n` bepaalt
+        het aantal resultaten en wordt begrensd tot 1–20. De berekening start
+        op het huidige servertijdstip, gebruikt de lokale tijdzone en wijzigt
+        geen crontab. De tool vereist dat de dependency `croniter` beschikbaar is.
+        """
         if not schedule or not schedule.strip():
             return err(INVALID_INPUT, "schedule cannot be empty", cfg=cfg)
         if not _validate_schedule(schedule):

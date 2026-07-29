@@ -37,14 +37,38 @@ def register_log_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def tail(path: str, n: int = 200) -> dict:
+        """
+        Lees de laatste `n` regels van één specifiek logbestand.
+
+        `path` moet een bestaand bestand onder een geconfigureerde
+        `allowed_log_dirs`-directory zijn. `n` bepaalt hoeveel regels aan
+        `tail -n` worden doorgegeven. De tool is alleen-lezen, heeft een
+        timeout van 10 seconden en retourneert de tekst via de standaard
+        `{success, data, error, meta}`-response.
+        """
         return _tail(path, n)
 
     @mcp.tool
     def log_tail(path: str, n: int = 200) -> dict:
+        """
+        Compatibiliteitsalias van `tail` voor het lezen van logbestanden.
+
+        Geef met `path` een bestaand bestand onder `allowed_log_dirs` op en
+        met `n` het aantal laatste regels. Deze tool heeft exact hetzelfde
+        alleen-lezen gedrag en dezelfde timeout van 10 seconden als `tail`;
+        gebruik `log_tail` wanneer een expliciete log-toolnaam gewenst is.
+        """
         return _tail(path, n)
 
     @mcp.tool
     def log_pick_path() -> dict:
+        """
+        Kies het eerste bestaande WordPress-debuglog uit de configuratie.
+
+        De kandidaten worden in de volgorde van `wp_log_candidates` getest.
+        De tool wijzigt niets en retourneert alleen het gevonden pad. Als
+        geen kandidaat een bestaand bestand is, volgt een `NOT_FOUND`-fout.
+        """
         p = _pick_wp_log_path()
         if p:
             return ok(p, cfg)
@@ -52,6 +76,16 @@ def register_log_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def log_tail_ai(n: int = 300) -> dict:
+        """
+        Lees recente AI Translate-regels uit het gekozen WordPress-debuglog.
+
+        `n` is het aantal laatste logregels dat vóór filtering wordt gelezen.
+        De tool kiest het eerste bestaande `wp_log_candidates`-bestand,
+        controleert `allowed_log_dirs` en filtert op de letterlijke tekst
+        `ai-translate:`. Als de filter geen regels vindt, worden de ongefilterde
+        laatste `n` regels teruggegeven. De tool is alleen-lezen en retourneert
+        zowel het gekozen pad als de gevonden regels.
+        """
         p = _pick_wp_log_path()
         if not p:
             return err(NOT_FOUND, "No log file found", cfg=cfg)
@@ -73,6 +107,15 @@ def register_log_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def log_tail_flow(n: int = 400) -> dict:
+        """
+        Filter recente AI Translate-requestflowregels uit het WordPress-log.
+
+        `n` bepaalt hoeveel laatste regels vóór filtering worden bekeken.
+        Alleen vaste flow-events zoals `request:start`, `resolved_post_id`
+        en de geconfigureerde fallback-events worden geretourneerd. De tool
+        kiest een bestaand `wp_log_candidates`-pad, vereist dat dit onder
+        `allowed_log_dirs` valt, wijzigt niets en retourneert pad plus regels.
+        """
         p = _pick_wp_log_path()
         if not p:
             return err(NOT_FOUND, "No log file found", cfg=cfg)
@@ -88,6 +131,15 @@ def register_log_tools(mcp, cfg: ServerConfig) -> None:
 
     @mcp.tool
     def log_tail_keywords(keywords: list[str], n: int = 400) -> dict:
+        """
+        Zoek letterlijke trefwoorden in de laatste regels van het WordPress-log.
+
+        `keywords` is een lijst die veilig wordt ge-escaped en als OR-filter
+        wordt toegepast; een lege lijst geeft lege regels terug. `n` bepaalt
+        hoeveel laatste regels vóór filtering worden bekeken. Het gekozen
+        `wp_log_candidates`-bestand moet onder `allowed_log_dirs` vallen.
+        De tool is alleen-lezen en retourneert het pad en de overeenkomende regels.
+        """
         p = _pick_wp_log_path()
         if not p:
             return err(NOT_FOUND, "No log file found", cfg=cfg)
