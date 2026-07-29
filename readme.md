@@ -2,7 +2,7 @@
 
 ## 📖 Description
 
-MCP Linux Tools is an MCP (Model Context Protocol) server that exposes a secure, whitelisted set of operations on a Linux server. It allows AI assistants (such as Cursor) to perform controlled system administration tasks like reading logs, checking service status, managing cron jobs, running WP-CLI commands, and executing sandboxed Python code—all through a uniform API with strict security constraints.
+MCP Linux Tools is an MCP (Model Context Protocol) server that exposes a secure, whitelisted set of operations on a Linux server. It allows AI assistants (such as VS Code, Claude or Cursor) to perform controlled system administration tasks like reading logs, checking service status, managing cron jobs, running WP-CLI commands, and executing sandboxed Python code—all through a uniform API with strict security constraints.
 
 The server runs as a systemd service and communicates over HTTP. All operations are restricted by configurable whitelists (directories, services, WordPress sites). Tools return a uniform response contract `{success, data, error, meta}`.
 
