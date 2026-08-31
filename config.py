@@ -96,7 +96,7 @@ def load_config(path: pathlib.Path) -> ServerConfig:
         server_type=_require_str(raw, ["server_type"]),
         server_ip=_require_str(raw, ["server_ip"]),
         server_name=_require_str(raw, ["server_name"]),
-        server_host=_optional_str(raw, ["server", "host"], "0.0.0.0"),
+        server_host=_optional_str(raw, ["server", "host"], "127.0.0.1"),
         server_port=_optional_int(raw, ["server", "port"], 8765),
         log_file=_require_str(raw, ["logging", "log_file"]),
         allowed_log_dirs=_require_str_list(raw, ["directories", "allowed_log"]),

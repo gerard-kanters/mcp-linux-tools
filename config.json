@@ -3,7 +3,7 @@
   "server_ip": "192.168.1.2",
   "server_name": "LinuxTools-Server",
   "server": {
-    "host": "0.0.0.0",
+    "host": "127.0.0.1",
     "port": 8765
   },
   "logging": {
